@@ -4,8 +4,6 @@
 #include <sstream>
 #include <cstdlib>
 #include <vector>
-#include <iterator>
-#include <algorithm>
 
 /*
  *  This project shall consist of:
