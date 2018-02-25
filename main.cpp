@@ -43,7 +43,7 @@ public:
     std::string run()
     {
         std::stringstream ret;
-        ret << name << "\t" << prng() << prng();
+        ret << name << "\t" << prng() << " " << prng();
         return ret.str();
     }
 
