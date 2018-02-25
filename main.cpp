@@ -64,8 +64,8 @@ int main(int argc, char *argv[])
     const std::vector<std::string> args(argv + 1, argv + argc);
 
     /*
-     * This can be improved by using a C++17 std::optional;
-     * it's not very nice to std::exit, especially in a lambda.
+     * This can be improved by using a C++17 std::optional and checking it externally;
+     * it's not very nice to std::exit(), especially in a lambda.
      */
     const auto argtoint = [&args](auto it) -> int {
         try {
@@ -78,12 +78,18 @@ int main(int argc, char *argv[])
 
     auto arg = args.cbegin();
     const int seed = argtoint(arg++);
+    const int events = (argc >= 3 && *arg != "--") ?
+        argtoint(arg++) : 1; /* default to a single event. */
 
-    /* Default to a single event. */
-    const int events = (argc >= 3 && *arg != "--") ? argtoint(arg++) : 1;
-
+    /* Parse seeds for module PRNGs. */
     std::vector<int> seeds;
-    if (arg != args.cend() && *arg == "--") {
+
+    /*
+     * Skip args until --.
+     * All subsequent integers states seeds for modules.
+     */
+    while (arg != args.cend() && *arg != "--") arg++;
+    if (arg != args.cend()) {
         for (++arg; arg != args.cend(); ++arg)
             seeds.push_back(argtoint(arg));
     }
