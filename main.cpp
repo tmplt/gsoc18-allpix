@@ -6,6 +6,7 @@
 #include <vector>
 #include <array>
 #include <iomanip>
+#include <thread>
 
 /*
  *  This project shall consist of:
@@ -84,7 +85,7 @@ public:
 int main(int argc, char *argv[])
 {
     if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " <seed> [events] [-- seed..]\n";
+        std::cerr << "Usage: " << argv[0] << " <seed> [events]\n";
         return EXIT_FAILURE;
     }
 
@@ -114,6 +115,7 @@ int main(int argc, char *argv[])
     std::mt19937_64 prng;
     prng.seed(seed);
 
+    /* Build an event of four sequential modules using the main PRNG. */
     const auto build_event = [&prng]() -> std::array<module_base, 4> {
         return {{
             A("module1", prng()),
@@ -123,13 +125,28 @@ int main(int argc, char *argv[])
         }};
     };
 
+    /*
+     * TODO: the following:
+     * - execute the events in parallel, possibly using a fixed number of worker threads.
+     * - joining the events after execution, retaining the order of the seeds provided by the main PRNG
+     *   (build_event() must be called in the same order).
+     * - printing all return strings in the correct order.
+     */
+
+    std::vector<std::thread> threads;
 
     for (int e = 1; e <= events; ++e) {
-        std::cout << "\nEvent " << e << ":\n";
+        threads.emplace_back([&build_event, e]() {
+            std::stringstream ss;
+            ss << "\nEvent " << e << ":\n";
 
-        for (auto &module : build_event())
-            std::cout << module.run() << "\n";
+            for (auto &module : build_event())
+                ss << module.run() << "\n";
 
-        std::cout << "\n";
+            std::cout << ss.str();
+        });
     }
+
+    for (auto &t : threads)
+        t.join();
 }
