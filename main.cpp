@@ -4,6 +4,7 @@
 #include <sstream>
 #include <cstdlib>
 #include <vector>
+#include <array>
 
 /*
  *  This project shall consist of:
@@ -31,6 +32,15 @@
 
 class module_base {
 public:
+    const std::string run()
+    {
+        std::stringstream ret;
+        ret << name << "\t" << prng()
+                    << "\t" << prng();
+        return ret.str();
+    }
+
+protected:
     module_base(std::string name)
         : name(name) {}
 
@@ -40,17 +50,34 @@ public:
         prng.seed(seed);
     }
 
-    std::string run()
-    {
-        std::stringstream ret;
-        ret << name << "\t" << prng() << " " << prng();
-        return ret.str();
-    }
-
-protected:
-    std::mt19937 prng;
-    std::string name;
+    std::mt19937_64 prng;
+    const std::string name;
 };
+
+class A : public module_base {
+public:
+    A(std::string &&name, int seed)
+        : module_base(std::forward<decltype(name)>(name), seed) {}
+};
+
+class B : public module_base {
+public:
+    B(std::string &&name, int seed)
+        : module_base(std::forward<decltype(name)>(name), seed) {}
+};
+
+class C : public module_base {
+public:
+    C(std::string &&name, int seed)
+        : module_base(std::forward<decltype(name)>(name), seed) {}
+};
+
+class D : public module_base {
+public:
+    D(std::string &&name, int seed)
+        : module_base(std::forward<decltype(name)>(name), seed) {}
+};
+
 
 int main(int argc, char *argv[])
 {
@@ -97,7 +124,19 @@ int main(int argc, char *argv[])
     for (auto &seed : seeds)
         std::cout << seed << (seed != seeds.back() ? " " : "\n");
 
-    /* 32-bit Mersenne Twister */
-    std::mt19937 prng;
+    /* 64-bit Mersenne Twister */
+    std::mt19937_64 prng;
     prng.seed(1);
+
+    const std::array<module_base, 4> event = {{
+        A("module1", prng()),
+        B("module2", prng()),
+        C("module3", prng()),
+        D("module4", prng()),
+    }};
+
+    for (auto module : event) {
+        /* TODO */
+        std::cout << module.run() << "\n";
+    }
 }
