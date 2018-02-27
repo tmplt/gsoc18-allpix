@@ -131,22 +131,21 @@ int main(int argc, char *argv[])
      * - joining the events after execution, retaining the order of the seeds provided by the main PRNG
      *   (build_event() must be called in the same order).
      * - printing all return strings in the correct order.
+     *
+     * No matter the number of threads, the output has to be the same.
      */
 
-    std::vector<std::thread> threads;
+    std::vector<std::string> results(events);
+    for (auto &result : results) {
+        std::stringstream ss;
 
-    for (int e = 1; e <= events; ++e) {
-        threads.emplace_back([&build_event, e]() {
-            std::stringstream ss;
-            ss << "\nEvent " << e << ":\n";
+        for (auto &module : build_event())
+            ss << module.run() << "\n";
 
-            for (auto &module : build_event())
-                ss << module.run() << "\n";
-
-            std::cout << ss.str();
-        });
+        result = ss.str();
     }
 
-    for (auto &t : threads)
-        t.join();
+    for (const auto &result : results) {
+        std::cout << result << "\n";
+    }
 }
