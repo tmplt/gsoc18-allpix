@@ -8,6 +8,13 @@
 #include <iomanip>
 #include <thread>
 
+#include <mutex>
+#include <memory>
+#include <future>
+#include <queue>
+#include <condition_variable>
+#include <functional>
+
 class module_base {
 public:
     const std::string run()
@@ -59,6 +66,78 @@ public:
         : module_base(std::forward<decltype(name)>(name), seed) {}
 };
 
+/* A thread pool, only n threads (excluding main thread) run concurrently. */
+
+class thread_pool {
+public:
+    thread_pool(size_t size)
+        : workers(size)
+    {
+        for (size_t i = 0; i < size; ++i) {
+            workers.emplace_back([this]() {
+                while (true) {
+                    std::function<void()> task;
+
+                    {
+                        std::unique_lock<std::mutex> lock(this->mutex);
+
+                        this->cv.wait(lock, [this] { return !this->tasks.empty(); });
+                        if (this->tasks.empty()) return;
+
+                        task = std::move(this->tasks.front());
+                        this->tasks.pop();
+                    }
+
+                    task();
+                }
+            });
+        }
+    }
+
+    template<typename F, typename... Args>
+    auto push(F &&f, Args&&... args) -> std::future<typename std::result_of<F(Args...)>::type>
+    {
+        /*
+         * If pool isn't full, execute function and then remove it from queue
+         * when done.
+         *
+         * If pool is full, block until it isn't.
+         * std::condition_variable no notify when a slot is free? Which slot?
+         * How do we know that the function is done?
+         */
+        /* pool.emplace_back(std::forward<F>(f), std::forward<Args>(args)...); */
+
+        using return_type = typename std::result_of<F(Args...)>::type;
+
+        auto task = std::make_shared<std::packaged_task<return_type()>>(
+            std::bind(std::forward<F>(f), std::forward<Args>(args)...)
+        );
+
+        std::future<return_type> res = task->get_future();
+
+        {
+            std::unique_lock<std::mutex> lock(mutex);
+            tasks.emplace([task]() { (*task)(); });
+        }
+
+        cv.notify_one();
+        return res;
+    }
+
+    void join()
+    {
+        cv.notify_all();
+        for (auto &w: workers)
+            w.join();
+    }
+
+private:
+    std::vector<std::thread> workers;
+    std::queue<std::function<void()>> tasks;
+
+    std::mutex mutex;
+    std::condition_variable cv;
+};
 
 int main(int argc, char *argv[])
 {
@@ -112,10 +191,9 @@ int main(int argc, char *argv[])
     /* TODO: execute the events in parallel using a fixed number of worker threads. */
 
     std::vector<std::string> results(events);
-    std::vector<std::thread> threads;
+    thread_pool pool(workers);
 
     for (auto result = results.begin(); result != results.end(); ++result) {
-    /* for (auto &result : results) { */
         /* Build event outside thread to ensure same output. */
         auto event = build_event();
 
@@ -123,7 +201,7 @@ int main(int argc, char *argv[])
          * Start the thread, calling .run() on all modules in the given event,
          * and store its result in the given string reference.
          */
-        threads.emplace_back([](auto event, auto result) {
+        pool.push([](auto event, auto result) {
             std::stringstream ss;
             for (auto &module : event)
                 ss << module.run() <<"\n";
@@ -132,9 +210,8 @@ int main(int argc, char *argv[])
         }, event, result);
     }
 
-    /* Join all threads ... */
-    for (auto &t : threads)
-        t.join();
+    /* Join all threads in the pool ... */
+    pool.join();
 
     /* ... and print the resulting output. */
     for (const auto &result : results)
