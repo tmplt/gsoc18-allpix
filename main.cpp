@@ -6,30 +6,7 @@
 #include <vector>
 #include <array>
 #include <iomanip>
-
-/*
- *  This project shall consist of:
- *  - an executable which initializes a Merseene Twister using standard seeding approaches.
- *  - several modules:
- *    - derived from the same base class
- *    - shall contain a construcor and a run() function (called multiple times)
- *    - shall have its own PRNG
- *    - return a string with its name and two numbers drawn from its PRNG
- *
- *  The framework shall be capable of the following:
- *  - execute all modules in fixed order (one full execution of all modules is called an event)
- *  - execute them n times, i.e. processing n events.
- *  - seeding all module PRNGs in each of the n events with a different number from the main PRNG
- *  - executing events in parallel, possibly using fixed number of worker threads.
- *  - joining the events after execution, retaining the order of the seeds provided by the main PRNG.
- *  - printing all return strings in the correct order.
- */
-
-/*
- * Thoughts and questions:
- * - How should modules be initialized? Name and main prng?
- * - What defines a module? A seperate ELF dynamically loaded or just a class instance?
- */
+#include <thread>
 
 class module_base {
 public:
@@ -55,6 +32,8 @@ protected:
     std::mt19937_64 prng;
     const std::string name;
 };
+
+/* Dummy classes, all of them modules. */
 
 class A : public module_base {
 public:
@@ -103,17 +82,24 @@ int main(int argc, char *argv[])
         }
     };
 
+    /* Parse program arguments. */
     auto arg = args.cbegin();
     const int seed = argtoint(arg++);
     const int events = (argc >= 3) ?
         argtoint(arg++) : 1; /* default to a single event. */
+    const int workers = (argc >= 4) ?
+        argtoint(arg++) : std::thread::hardware_concurrency(); /* default to number of CPU cores. */
 
-    std::cout << "seed: " << seed << ", events: " << events << "\n";
+    std::cout << "seed: " << seed
+              << ", events: " << events
+              << ", workers: " << workers
+              << "\n";
 
-    /* 64-bit Mersenne Twister */
+    /* Main 64-bit Mersenne Twister. Seeds all created modules. */
     std::mt19937_64 prng;
     prng.seed(seed);
 
+    /* Build an event of four sequential modules using the main PRNG. */
     const auto build_event = [&prng]() -> std::array<module_base, 4> {
         return {{
             A("module1", prng()),
@@ -123,13 +109,33 @@ int main(int argc, char *argv[])
         }};
     };
 
+    /* TODO: execute the events in parallel using a fixed number of worker threads. */
 
-    for (int e = 1; e <= events; ++e) {
-        std::cout << "\nEvent " << e << ":\n";
+    std::vector<std::string> results(events);
+    std::vector<std::thread> threads;
 
-        for (auto &module : build_event())
-            std::cout << module.run() << "\n";
+    for (auto result = results.begin(); result != results.end(); ++result) {
+        /* Build event outside thread to ensure same output. */
+        auto event = build_event();
 
-        std::cout << "\n";
+        /*
+         * Start the thread, calling .run() on all modules in the given event,
+         * and store its result in the given string reference.
+         */
+        threads.emplace_back([](auto event, auto result) {
+            std::stringstream ss;
+            for (auto &module : event)
+                ss << module.run() <<"\n";
+
+            *result = ss.str();
+        }, event, result);
     }
+
+    /* Join all threads ... */
+    for (auto &t : threads)
+        t.join();
+
+    /* ... and print the resulting output. */
+    for (const auto &result : results)
+        std::cout << result << "\n";
 }
