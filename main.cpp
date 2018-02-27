@@ -125,27 +125,34 @@ int main(int argc, char *argv[])
         }};
     };
 
-    /*
-     * TODO: the following:
-     * - execute the events in parallel, possibly using a fixed number of worker threads.
-     * - joining the events after execution, retaining the order of the seeds provided by the main PRNG
-     *   (build_event() must be called in the same order).
-     * - printing all return strings in the correct order.
-     *
-     * No matter the number of threads, the output has to be the same.
-     */
+    /* TODO: execute the events in parallel using a fixed number of worker threads. */
 
     std::vector<std::string> results(events);
-    for (auto &result : results) {
-        std::stringstream ss;
+    std::vector<std::thread> threads;
 
-        for (auto &module : build_event())
-            ss << module.run() << "\n";
+    for (auto result = results.begin(); result != results.end(); ++result) {
+    /* for (auto &result : results) { */
+        /* Build event outside thread to ensure same output. */
+        auto event = build_event();
 
-        result = ss.str();
+        /*
+         * Start the thread, calling .run() on all modules in the given event,
+         * and store its result in the given string reference.
+         */
+        threads.emplace_back([](auto event, auto result) {
+            std::stringstream ss;
+            for (auto &module : event)
+                ss << module.run() <<"\n";
+
+            *result = ss.str();
+        }, event, result);
     }
 
-    for (const auto &result : results) {
+    /* Join all threads ... */
+    for (auto &t : threads)
+        t.join();
+
+    /* ... and print the resulting output. */
+    for (const auto &result : results)
         std::cout << result << "\n";
-    }
 }
