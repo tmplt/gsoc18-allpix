@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <vector>
 #include <array>
+#include <iomanip>
 
 /*
  *  This project shall consist of:
@@ -35,8 +36,9 @@ public:
     const std::string run()
     {
         std::stringstream ret;
-        ret << name << "\t" << prng()
-                    << "\t" << prng();
+        // TODO: right-align this?
+        ret << name << " " << std::hex << std::setfill(' ') << std::setw(3)
+            << prng() << "  " << prng();
         return ret.str();
     }
 
@@ -103,40 +105,31 @@ int main(int argc, char *argv[])
 
     auto arg = args.cbegin();
     const int seed = argtoint(arg++);
-    const int events = (argc >= 3 && *arg != "--") ?
+    const int events = (argc >= 3) ?
         argtoint(arg++) : 1; /* default to a single event. */
-
-    /* Parse seeds for module PRNGs. */
-    std::vector<int> seeds;
-
-    /*
-     * Skip args until --.
-     * All subsequent integers states seeds for modules.
-     */
-    while (arg != args.cend() && *arg != "--") arg++;
-    if (arg != args.cend()) {
-        for (++arg; arg != args.cend(); ++arg)
-            seeds.push_back(argtoint(arg));
-    }
 
     std::cout << "seed: " << seed << ", events: " << events << "\n";
 
-    for (auto &seed : seeds)
-        std::cout << seed << (seed != seeds.back() ? " " : "\n");
-
     /* 64-bit Mersenne Twister */
     std::mt19937_64 prng;
-    prng.seed(1);
+    prng.seed(seed);
 
-    const std::array<module_base, 4> event = {{
-        A("module1", prng()),
-        B("module2", prng()),
-        C("module3", prng()),
-        D("module4", prng()),
-    }};
+    const auto build_event = [&prng]() -> std::array<module_base, 4> {
+        return {{
+            A("module1", prng()),
+            B("module2", prng()),
+            C("module3", prng()),
+            D("module4", prng()),
+        }};
+    };
 
-    for (auto module : event) {
-        /* TODO */
-        std::cout << module.run() << "\n";
+
+    for (int e = 1; e <= events; ++e) {
+        std::cout << "\nEvent " << e << ":\n";
+
+        for (auto &module : build_event())
+            std::cout << module.run() << "\n";
+
+        std::cout << "\n";
     }
 }
