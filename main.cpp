@@ -19,7 +19,7 @@ public:
         /* Bad practice, but okay for this small example. */
         constexpr int hex_len = 17;
 
-        ret << name << " " << std::hex << std::setfill(' ') << std::setw(hex_len) << std::right
+        ret << name << " " << std::hex << std::setfill(' ') << std::setw(hex_len) << std::internal
             << prng() << " " << prng();
 
         return ret.str();
