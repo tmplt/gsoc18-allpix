@@ -123,6 +123,10 @@ int main(int argc, char *argv[])
         /* Build event outside thread to ensure same output. */
         auto event = build_event();
 
+        /*
+         * Enqueue a thread in the pool. When done,
+         * a future<string> is written to results.
+         */
         results.emplace_back(
             pool.enqueue([](auto event) {
                 std::stringstream ss;
@@ -130,11 +134,10 @@ int main(int argc, char *argv[])
                     ss << module.run() << "\n";
 
                 return ss.str();
-            }, event)
+            }, std::move(event))
         );
     }
 
-    /* ... and print the resulting output. */
     for (auto &&result : results)
         std::cout << result.get() << "\n";
 
