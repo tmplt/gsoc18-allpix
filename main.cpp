@@ -13,9 +13,13 @@ public:
     const std::string run()
     {
         std::stringstream ret;
-        // TODO: right-align this?
-        ret << name << " " << std::hex << std::setfill(' ') << std::setw(3)
-            << prng() << "  " << prng();
+
+        /* Bad practice, but okay for this small example. */
+        constexpr hex_len = 17;
+
+        ret << name << " " << std::hex << std::setfill(' ') << std::setw(hex_len) << std::right
+            << prng() << " " << prng();
+
         return ret.str();
     }
 
@@ -108,8 +112,6 @@ int main(int argc, char *argv[])
             D("module4", prng()),
         }};
     };
-
-    /* TODO: execute the events in parallel using a fixed number of worker threads. */
 
     std::vector<std::string> results(events);
     std::vector<std::thread> threads;
