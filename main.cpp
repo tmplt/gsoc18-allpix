@@ -15,9 +15,13 @@ public:
     const std::string run()
     {
         std::stringstream ret;
-        // TODO: right-align this?
-        ret << name << " " << std::hex << std::setfill(' ') << std::setw(3)
-            << prng() << "  " << prng();
+
+        /* Bad practice, but okay for this small example. */
+        constexpr hex_len = 17;
+
+        ret << name << " " << std::hex << std::setfill(' ') << std::setw(hex_len) << std::right
+            << prng() << " " << prng();
+
         return ret.str();
     }
 
