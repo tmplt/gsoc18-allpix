@@ -4,7 +4,6 @@
 #include <sstream>
 #include <cstdlib>
 #include <vector>
-#include <array>
 #include <iomanip>
 #include <thread>
 
