@@ -125,7 +125,7 @@ int main(int argc, char *argv[])
                 ss << module.run() <<"\n";
 
             *result = ss.str();
-        }, event, result);
+        }, std::move(event), result);
     }
 
     /* Join all threads ... */
