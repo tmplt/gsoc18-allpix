@@ -91,13 +91,8 @@ int main(int argc, char *argv[])
     const int seed = argtoint(arg++);
     const int events = (argc >= 3) ?
         argtoint(arg++) : 1; /* default to a single event. */
-    const int workers = (argc >= 4) ?
-        argtoint(arg++) : std::thread::hardware_concurrency(); /* default to number of CPU cores. */
 
-    std::cout << "seed: " << seed
-              << ", events: " << events
-              << ", workers: " << workers
-              << "\n";
+    std::cout << "seed: " << seed << ", events: " << events << "\n";
 
     /* Main 64-bit Mersenne Twister. Seeds all created modules. */
     std::mt19937_64 prng;
@@ -122,7 +117,7 @@ int main(int argc, char *argv[])
 
         /*
          * Start the thread, calling .run() on all modules in the given event,
-         * and store its result in the given string reference.
+         * and store its result in the given vector<string> iterator.
          */
         threads.emplace_back([](auto event, auto result) {
             std::stringstream ss;
